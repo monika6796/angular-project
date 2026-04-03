@@ -1,0 +1,103 @@
+<div class="main-container" [class.sidebar-collapsed]="isSidebarCollapsed">
+
+  <div class="sidebar">
+
+    <!-- Toggle -->
+    <button class="toggle-btn" (click)="toggleSidebar()">
+      <i class="bi" [class.bi-chevron-left]="!isSidebarCollapsed" [class.bi-chevron-right]="isSidebarCollapsed"></i>
+    </button>
+
+    <!-- Logo -->
+    <div class="logo">
+      <i class="bi bi-whatsapp" style="font-size:28px; color:#25D366; flex-shrink:0;"></i>
+      <span class="logo-text">SocialCRM</span>
+    </div>
+
+    <!-- User Profile -->
+    <div class="user-profile" *ngIf="userEmail">
+      <div class="avatar">{{ getInitials(userEmail) }}</div>
+      <div class="user-info">
+        <div class="user-email" [title]="userEmail">{{ userEmail }}</div>
+        <div class="user-status">
+          <span class="status-dot" [class.active]="isActive" [class.inactive]="!isActive"></span>
+          <span class="status-text">{{ isActive ? 'Active' : 'Inactive' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="menu-title">MENU</p>
+
+    <ul class="menu">
+
+      <!-- Dashboard Menu -->
+      <li (click)="toggleDashboard()" class="menu-parent" [class.open]="showDashboardMenu">
+        <i class="bi-grid-1x2"></i>
+        <span class="menu-text">Dashboard</span>
+        <span class="arrow" [class.rotated]="showDashboardMenu">›</span>
+      </li>
+
+      <div class="submenu" [class.show]="showDashboardMenu">
+        <li class="sub" [routerLink]="['/home/dashboard']" routerLinkActive="active">
+          <i class="bi bi-bar-chart-line"></i>
+          <span class="menu-text">Overview</span>
+        </li>
+      </div>
+
+      <!-- Channels Menu -->
+      <li (click)="toggleChannel()" class="menu-parent" [class.open]="showChannelMenu">
+        <i class="bi bi-broadcast"></i>
+        <span class="menu-text">Channels</span>
+        <span class="arrow" [class.rotated]="showChannelMenu">›</span>
+      </li>
+
+      <div class="submenu" [class.show]="showChannelMenu">
+        <li class="sub" (click)="showView('all')" [class.active]="activeView === 'all'">
+          <i class="bi bi-grid-3x3-gap"></i>
+          <span class="menu-text">All Channels</span>
+        </li>
+        <li class="sub" [routerLink]="['/home/app-whatsapp']" routerLinkActive="active">
+          <i class="bi bi-whatsapp"></i>
+          <span class="menu-text">WhatsApp</span>
+        </li>
+      </div>
+      <li (click)="toggleCRM()" class="menu-parent" [class.open]="showCRMMenu">
+        <i class="bi-people"></i>
+        <span class="menu-text">CRM</span>
+        <span class="arrow" [class.rotated]="showCRMMenu">›</span>
+      </li>
+
+      <div class="submenu" [class.show]="showCRMMenu">
+        <li class="sub" [routerLink]="['/home/message_chats']" routerLinkActive="active">
+          <i class="bi bi-chat-left-dots"></i>
+          <span class="menu-text">Live Chat</span>
+        </li>
+        <li class="sub" [routerLink]="['/home/bulk-campagain']" routerLinkActive="active">
+          <i class="bi bi-megaphone"></i>
+          <span class="menu-text">Bulk-Campagain</span>
+        </li>
+      </div>
+    </ul>
+
+    <!-- ✅ LOGOUT BUTTON — sidebar ke bilkul bottom mein -->
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()">
+        <i class="bi bi-box-arrow-left"></i>
+        <span class="menu-text">Logout</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Content Area -->
+  <div class="content">
+    <div class="content">
+      <router-outlet></router-outlet>
+    </div>
+<!-- 
+    <div *ngIf="!activeView" class="empty-state">
+      <i class="bi bi-layout-sidebar-reverse"></i>
+      <p>Select an option from the menu</p>
+    </div> -->
+  </div>
+
+</div>

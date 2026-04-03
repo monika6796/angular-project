@@ -1,0 +1,27 @@
+body {
+  background-color: #f5f5f5;
+}
+
+.card {
+  border-radius: 10px;
+}
+
+.btn.custom-btn {
+  background-color: #5bc272 !important;
+  color: #e8f4eb !important;
+  border: none !important;
+
+}
+
+.custom-btn {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;                    /* spacing text + icon */
+}
+.custom-btn i {
+  font-size: 19px;      /* 🔥 size bada */
+  font-weight: 900;     /* 🔥 bold feel */
+}
+
+

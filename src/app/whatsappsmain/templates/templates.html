@@ -1,0 +1,512 @@
+<div class="templates-container">
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input
+        type="text"
+        placeholder="Search With Template Name..."
+        [value]="searchQuery()"
+        (input)="onSearchChange($any($event.target).value)"
+      />
+    </div>
+    <div class="action-buttons">
+      <button class="btn btn-teal"   (click)="onOpenTemplateLibrary()">📊 Open Template Library</button>
+      <button class="btn btn-teal"   (click)="onAITemplateBuilder()">🤖 AI Template Builder</button>
+      <button class="btn btn-teal"   (click)="onCreateTemplate()">+ Create Template</button>
+      <button class="btn btn-teal"   (click)="onSyncTemplates()">🔄 Sync Templates</button>
+      <button class="btn btn-teal"   (click)="onBulkCloneTemplates()">📋 Bulk Clone Templates</button>
+      <button class="btn btn-orange" (click)="onFilters()">🔽 Filters</button>
+      <button class="btn btn-teal"   (click)="onRefresh()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Error Banner -->
+  <div class="error-banner" *ngIf="error()">
+    ⚠️ {{ error() }}
+    <button class="btn-retry" (click)="fetchTemplates()">↺ Retry</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrapper">
+    <table class="templates-table">
+      <thead>
+        <tr>
+          <th class="col-check">
+            <input type="checkbox" [checked]="selectAll()"
+              (change)="toggleSelectAll($any($event.target).checked)" />
+          </th>
+          <th>STATUS</th>
+          <th class="col-dot">.</th>
+          <th>NAME</th>
+          <th>CATEGORY</th>
+          <th>LANGUAGE</th>
+          <th>ACTION</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngIf="loading() && templates().length === 0">
+          <tr *ngFor="let i of [1,2,3]" class="skeleton-row">
+            <td><div class="skel skel-sm"></div></td>
+            <td><div class="skel skel-md"></div></td>
+            <td><div class="skel skel-sm"></div></td>
+            <td><div class="skel skel-lg"></div></td>
+            <td><div class="skel skel-md"></div></td>
+            <td><div class="skel skel-md"></div></td>
+            <td><div class="skel skel-xl"></div></td>
+          </tr>
+        </ng-container>
+
+        <ng-container *ngIf="filteredTemplates().length > 0">
+          <tr *ngFor="let template of filteredTemplates()" [class.selected]="template.selected">
+            <td class="col-check">
+              <input type="checkbox" [checked]="template.selected"
+                (change)="toggleRow(template.id, $any($event.target).checked)" />
+            </td>
+            <td>
+              <span class="status-badge" [ngClass]="template.status.toLowerCase()">
+                {{ template.status }}
+              </span>
+            </td>
+            <td class="col-dot"><span class="img-icon">🖼️</span></td>
+            <td class="col-name">{{ template.name }}</td>
+            <td>{{ template.category }}</td>
+            <td>{{ template.language }}</td>
+            <td class="col-actions">
+              <button class="icon-btn" title="View"      (click)="onView(template)">👁️</button>
+              <button class="icon-btn" title="Send"      (click)="onSend(template)">➤</button>
+              <button class="icon-btn" title="JSON"      (click)="onJson(template)">&#123;&#125;</button>
+              <button class="icon-btn" title="Code"      (click)="onCode(template)">&lt;&gt;</button>
+              <button class="icon-btn" title="Clone"     (click)="onClone(template)">📋</button>
+              <button class="icon-btn" title="Edit"      (click)="onEdit(template)">✏️</button>
+              <button class="icon-btn danger" title="Delete" (click)="onDelete(template.id)">🗑️</button>
+              <button class="icon-btn" title="Analytics" (click)="onAnalytics(template)">📊</button>
+            </td>
+          </tr>
+        </ng-container>
+
+        <ng-container *ngIf="!loading() && filteredTemplates().length === 0 && !error()">
+          <tr><td colspan="7" class="empty-row">No templates found.</td></tr>
+        </ng-container>
+      </tbody>
+    </table>
+
+    <div class="load-more-wrap" *ngIf="hasMore() && !loading()">
+      <button class="btn btn-teal" (click)="loadMore()">Load More Templates</button>
+    </div>
+    <div class="bottom-loader" *ngIf="loading() && templates().length > 0">
+      <span class="spinner"></span> Loading more...
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     PREVIEW MODAL (center popup)
+════════════════════════════════════ -->
+<ng-container *ngIf="previewTemplate()">
+  <div class="modal-overlay" [class.open]="modalOpen()" (click)="closeModal()"></div>
+
+  <div class="modal-wrap" [class.open]="modalOpen()">
+    <button class="modal-close" (click)="closeModal()">✕</button>
+
+    <div class="modal-label">
+      <span class="modal-tname">{{ previewTemplate()!.name }}</span>
+      <span class="status-badge" [ngClass]="previewTemplate()!.status.toLowerCase()">
+        {{ previewTemplate()!.status }}
+      </span>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <div class="wa-topbar">
+          <div class="wa-back">‹</div>
+          <div class="wa-avatar">
+            <svg viewBox="0 0 24 24" fill="white" width="18" height="18">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+          </div>
+          <div class="wa-contact-info">
+            <div class="wa-contact-name">Business Account</div>
+            <div class="wa-contact-status">online</div>
+          </div>
+          <div class="wa-topbar-icons">
+            <span>📹</span><span>📞</span><span>⋮</span>
+          </div>
+        </div>
+
+        <div class="wa-chat-bg">
+          <div class="wa-date-pill">Today</div>
+          <div class="wa-bubble-wrap">
+            <div class="wa-bubble">
+              <div class="wa-img-header" *ngIf="headerComp?.format === 'IMAGE'">
+                <div class="wa-img-placeholder">
+                  <svg viewBox="0 0 24 24" fill="#90a4ae" width="32" height="32"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-1.1 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                  <span>Image</span>
+                </div>
+              </div>
+              <div class="wa-img-header" *ngIf="headerComp?.format === 'VIDEO'">
+                <div class="wa-img-placeholder video">
+                  <svg viewBox="0 0 24 24" fill="#90a4ae" width="32" height="32"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                  <span>Video</span>
+                </div>
+              </div>
+              <div class="wa-doc-header" *ngIf="headerComp?.format === 'DOCUMENT'">
+                <svg viewBox="0 0 24 24" fill="#128C7E" width="20" height="20"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                <span>Document</span>
+              </div>
+              <div class="wa-text-header" *ngIf="headerComp?.format === 'TEXT' || (headerComp && !headerComp.format)">
+                <span [innerHTML]="headerWithExamples"></span>
+              </div>
+              <div class="wa-body-text" *ngIf="bodyComp?.text">
+                <span [innerHTML]="bodyWithExamples"></span>
+              </div>
+              <div class="wa-footer-text" *ngIf="footerComp?.text">
+                {{ footerComp!.text }}
+              </div>
+              <div class="wa-meta">
+                <span class="wa-time">{{ getCurrentTime() }}</span>
+                <span class="wa-ticks">✓✓</span>
+              </div>
+            </div>
+
+            <ng-container *ngIf="buttonsComp?.buttons?.length">
+              <div class="wa-btn-group">
+                <div class="wa-cta-btn" *ngFor="let btn of buttonsComp!.buttons; let last = last" [class.last]="last">
+                  <ng-container [ngSwitch]="btn.type">
+                    <span *ngSwitchCase="'URL'">
+                      <svg viewBox="0 0 24 24" fill="#128C7E" width="14" height="14"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                      {{ btn.text }}
+                    </span>
+                    <span *ngSwitchCase="'PHONE_NUMBER'">
+                      <svg viewBox="0 0 24 24" fill="#128C7E" width="14" height="14"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                      {{ btn.text }}
+                    </span>
+                    <span *ngSwitchCase="'QUICK_REPLY'">
+                      <svg viewBox="0 0 24 24" fill="#128C7E" width="14" height="14"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
+                      {{ btn.text }}
+                    </span>
+                    <span *ngSwitchDefault>{{ btn.text }}</span>
+                  </ng-container>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+
+        <div class="wa-input-bar">
+          <div class="wa-input-field">Type a message</div>
+          <div class="wa-send-btn">
+            <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
+
+<!-- ═══════════════════════════════════
+     SEND MODAL — two-panel popup
+════════════════════════════════════ -->
+<ng-container *ngIf="sendTemplate()">
+  <div class="modal-overlay" [class.open]="sendModalOpen()" (click)="closeSendModal()"></div>
+
+  <div class="send-modal-wrap" [class.open]="sendModalOpen()" (click)="$event.stopPropagation()">
+
+    <!-- Close -->
+    <button class="modal-close" (click)="closeSendModal()">✕</button>
+
+    <!-- Header strip -->
+    <div class="send-modal-header">
+      <div class="send-modal-title">
+        <span class="send-icon-circle">➤</span>
+        <div>
+          <div class="send-tpl-name">{{ sendTemplate()!.name }}</div>
+          <div class="send-tpl-sub">Fill variables &amp; send WhatsApp message</div>
+        </div>
+      </div>
+      <span class="status-badge" [ngClass]="sendTemplate()!.status.toLowerCase()">
+        {{ sendTemplate()!.status }}
+      </span>
+    </div>
+
+    <!-- Two-column body -->
+    <div class="send-modal-body">
+
+      <!-- LEFT: inputs -->
+      <div class="send-left">
+
+        <!-- Phone number -->
+        <!-- FIX: [(ngModel)] use kiya — getter/setter se signal se bind hota hai -->
+        <div class="send-field-group">
+          <label class="send-field-label">
+            📱 Recipient Phone Number
+            <span class="send-required">*</span>
+          </label>
+          <div class="send-phone-wrap">
+            <span class="send-phone-prefix">+</span>
+            <input
+              type="tel"
+              class="send-input"
+              placeholder="919876543210  (country code + number)"
+              [(ngModel)]="phoneNumberModel"
+            />
+          </div>
+          <div class="send-field-hint">Include country code, no spaces or dashes</div>
+        </div>
+
+        <!-- Header variables -->
+        <!-- FIX: sendHeaderVars.length — () hata diya, plain array hai ab -->
+        <div class="send-vars-section" *ngIf="sendHeaderVars.length > 0">
+          <div class="send-section-title">
+            <span class="send-section-dot header-dot"></span>
+            Header Variables
+          </div>
+          <!-- FIX: [(ngModel)]="v.value" — direct bind, no update method needed -->
+          <div class="send-field-group" *ngFor="let v of sendHeaderVars">
+            <label class="send-field-label">{{ v.label }}</label>
+            <input
+              type="text"
+              class="send-input"
+              [placeholder]="'Enter value for {{' + v.index + '}}'"
+              [(ngModel)]="v.value"
+            />
+          </div>
+        </div>
+
+        <!-- Body variables -->
+        <!-- FIX: sendBodyVars.length — () hata diya -->
+        <div class="send-vars-section" *ngIf="sendBodyVars.length > 0">
+          <div class="send-section-title">
+            <span class="send-section-dot body-dot"></span>
+            Body Variables
+          </div>
+          <!-- FIX: [(ngModel)]="v.value" — direct bind -->
+          <div class="send-field-group" *ngFor="let v of sendBodyVars">
+            <label class="send-field-label">{{ v.label }}</label>
+            <input
+              type="text"
+              class="send-input"
+              [placeholder]="'Enter value for {{' + v.index + '}}'"
+              [(ngModel)]="v.value"
+            />
+          </div>
+        </div>
+
+        <!-- Button URL variables -->
+        <!-- FIX: sendButtonVars.length — () hata diya -->
+        <div class="send-vars-section" *ngIf="sendButtonVars.length > 0">
+          <div class="send-section-title">
+            <span class="send-section-dot btn-dot"></span>
+            Button URL Variables
+          </div>
+          <!-- FIX: [(ngModel)]="v.value" — direct bind -->
+          <div class="send-field-group" *ngFor="let v of sendButtonVars">
+            <label class="send-field-label">{{ v.label }}</label>
+            <input
+              type="text"
+              class="send-input"
+              placeholder="Enter dynamic URL suffix"
+              [(ngModel)]="v.value"
+            />
+          </div>
+        </div>
+
+        <!-- No variables message -->
+        <!-- FIX: sab .length checks se () hata diya -->
+        <div class="send-no-vars"
+             *ngIf="sendHeaderVars.length === 0 && sendBodyVars.length === 0 && sendButtonVars.length === 0">
+          <span>✅ This template has no dynamic variables.</span>
+        </div>
+
+        <!-- Success / Error -->
+        <div class="send-success-banner" *ngIf="sendSuccess()">{{ sendSuccess() }}</div>
+        <div class="send-error-banner"   *ngIf="sendError()">{{ sendError() }}</div>
+
+        <!-- Send button -->
+        <button
+          class="send-submit-btn"
+          [disabled]="sendLoading()"
+          (click)="submitSend()"
+        >
+          <span *ngIf="!sendLoading()">➤ Send Message</span>
+          <span *ngIf="sendLoading()" class="send-btn-loading">
+            <span class="spinner white-spinner"></span> Sending…
+          </span>
+        </button>
+      </div>
+
+      <!-- RIGHT: live phone preview -->
+      <div class="send-right">
+        <div class="send-preview-label">Live Preview</div>
+
+        <div class="phone-frame send-phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+
+            <div class="wa-topbar">
+              <div class="wa-back">‹</div>
+              <div class="wa-avatar">
+                <svg viewBox="0 0 24 24" fill="white" width="16" height="16">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+              </div>
+              <div class="wa-contact-info">
+                <div class="wa-contact-name">Business Account</div>
+                <div class="wa-contact-status">online</div>
+              </div>
+              <div class="wa-topbar-icons">
+                <span>📹</span><span>📞</span><span>⋮</span>
+              </div>
+            </div>
+
+            <div class="wa-chat-bg">
+              <div class="wa-date-pill">Today</div>
+              <div class="wa-bubble-wrap">
+                <div class="wa-bubble">
+
+                  <!-- IMAGE header -->
+                  <div class="wa-img-header" *ngIf="sendHeaderComp?.format === 'IMAGE'">
+                    <div class="wa-img-placeholder">
+                      <svg viewBox="0 0 24 24" fill="#90a4ae" width="28" height="28"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-1.1 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                      <span>Image</span>
+                    </div>
+                  </div>
+
+                  <!-- VIDEO header -->
+                  <div class="wa-img-header" *ngIf="sendHeaderComp?.format === 'VIDEO'">
+                    <div class="wa-img-placeholder video">
+                      <svg viewBox="0 0 24 24" fill="#90a4ae" width="28" height="28"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                      <span>Video</span>
+                    </div>
+                  </div>
+
+                  <!-- DOCUMENT header -->
+                  <div class="wa-doc-header" *ngIf="sendHeaderComp?.format === 'DOCUMENT'">
+                    <svg viewBox="0 0 24 24" fill="#128C7E" width="18" height="18"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    <span>Document</span>
+                  </div>
+
+                  <!-- TEXT header (live) -->
+                  <div class="wa-text-header"
+                       *ngIf="sendHeaderComp && (sendHeaderComp.format === 'TEXT' || !sendHeaderComp.format)">
+                    <span [innerHTML]="sendHeaderPreview"></span>
+                  </div>
+
+                  <!-- BODY (live) -->
+                  <div class="wa-body-text" *ngIf="sendBodyComp?.text">
+                    <span [innerHTML]="sendBodyPreview"></span>
+                  </div>
+
+                  <!-- FOOTER -->
+                  <div class="wa-footer-text" *ngIf="sendFooterComp?.text">
+                    {{ sendFooterComp!.text }}
+                  </div>
+
+                  <div class="wa-meta">
+                    <span class="wa-time">{{ getCurrentTime() }}</span>
+                    <span class="wa-ticks">✓✓</span>
+                  </div>
+                </div>
+
+                <!-- Buttons preview -->
+                <ng-container *ngIf="sendButtonsComp?.buttons?.length">
+                  <div class="wa-btn-group">
+                    <div class="wa-cta-btn" *ngFor="let btn of sendButtonsComp!.buttons">
+                      <ng-container [ngSwitch]="btn.type">
+                        <span *ngSwitchCase="'URL'">
+                          <svg viewBox="0 0 24 24" fill="#128C7E" width="12" height="12"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                          {{ btn.text }}
+                        </span>
+                        <span *ngSwitchCase="'PHONE_NUMBER'">
+                          <svg viewBox="0 0 24 24" fill="#128C7E" width="12" height="12"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                          {{ btn.text }}
+                        </span>
+                        <span *ngSwitchCase="'QUICK_REPLY'">
+                          <svg viewBox="0 0 24 24" fill="#128C7E" width="12" height="12"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
+                          {{ btn.text }}
+                        </span>
+                        <span *ngSwitchDefault>{{ btn.text }}</span>
+                      </ng-container>
+                    </div>
+                  </div>
+                </ng-container>
+
+              </div>
+            </div>
+
+            <div class="wa-input-bar">
+              <div class="wa-input-field">Type a message</div>
+              <div class="wa-send-btn">
+                <svg viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Recipient tag -->
+        <!-- FIX: phoneNumberModel use kiya — getter se value aati hai -->
+        <div class="send-to-tag" *ngIf="phoneNumberModel">
+          <span>📤 To: +<ng-container>{{ phoneNumberModel }}</ng-container></span>
+        </div>
+      </div>
+
+    </div><!-- /send-modal-body -->
+  </div><!-- /send-modal-wrap -->
+</ng-container>
+
+
+<!-- ═══════════════════════════════════
+     JSON MODAL
+════════════════════════════════════ -->
+<ng-container *ngIf="jsonTemplate()">
+  <div class="modal-overlay" [class.open]="jsonModalOpen()" (click)="closeJsonModal()"></div>
+
+  <div class="json-modal-wrap" [class.open]="jsonModalOpen()" (click)="$event.stopPropagation()">
+    <button class="modal-close" (click)="closeJsonModal()">✕</button>
+
+    <div class="json-modal-header">
+      <div class="json-modal-title">
+        <span class="json-icon">&#123;&#125;</span>
+        <div>
+          <div class="json-tpl-name">{{ jsonTemplate()!.name }}</div>
+          <div class="json-tpl-sub">WhatsApp API — Ready-to-use JSON body</div>
+        </div>
+      </div>
+      <button class="json-copy-btn" (click)="copyJson()">
+        <span *ngIf="!jsonCopied()">📋 Copy</span>
+        <span *ngIf="jsonCopied()">✅ Copied!</span>
+      </button>
+    </div>
+
+    <div class="json-code-wrap">
+      <pre class="json-pre"><code>{{ jsonPayload }}</code></pre>
+    </div>
+
+    <div class="json-footer-note">
+      💡 <code>&lt;PHONE_NUMBER&gt;</code>, <code>&lt;body_var_N&gt;</code> etc. ko apni actual values se replace karo.
+    </div>
+  </div>
+</ng-container>
+
+<!-- ═══════════════════════════════════
+     DELETE NOTIFICATION TOAST
+════════════════════════════════════ -->
+<div class="delete-toast" *ngIf="deleteNotif()"
+     [class.toast-success]="deleteNotif()!.type === 'success'"
+     [class.toast-error]="deleteNotif()!.type === 'error'">
+  <span class="toast-msg">{{ deleteNotif()!.msg }}</span>
+  <button class="toast-close" (click)="deleteNotif.set(null)">✕</button>
+</div>
+
+<!-- Create Template Modal -->
+<app-create-tempalte
+  [isOpen]="createModalOpen()"
+  [wabaId]="wabaId()"
+  (closed)="createModalOpen.set(false)"
+  (created)="createModalOpen.set(false); fetchTemplates()">
+</app-create-tempalte>

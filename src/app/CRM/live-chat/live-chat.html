@@ -1,0 +1,345 @@
+<!-- live-chat.html -->
+<div class="crm-shell">
+
+  <!-- WABA + Phone Selector -->
+  <div class="waba-selector-row">
+    <div class="waba-select-group">
+      <label>WABA ID</label>
+      <select [(ngModel)]="selectedWabaId" (change)="onWabaChange()">
+        <option *ngFor="let w of wabaList" [value]="w.id">
+          {{ w.name }} ({{ w.id }})
+        </option>
+      </select>
+    </div>
+    <div class="waba-select-group">
+      <label>Phone Number ID</label>
+      <select [(ngModel)]="selectedPhoneNumberId" (change)="loadConversations(true)">
+        <option *ngFor="let p of phoneList" [value]="p.id">
+          {{ p.display }} ({{ p.id }})
+        </option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Hidden file input -->
+  <input
+    #fileInput
+    type="file"
+    style="display:none"
+    (change)="onFileSelected($event)"
+  />
+
+  <!-- BACKDROP -->
+  <div
+    class="drawer-backdrop"
+    [class.drawer-backdrop--visible]="sidebarCollapsed"
+    (click)="toggleSidebar()"
+  ></div>
+
+  <!-- LEFT PANEL — Conversation List -->
+  <aside
+    class="sidebar"
+    [class.sidebar--hidden]="isMobileChat && !sidebarCollapsed"
+    [class.sidebar--drawer]="!!selectedConv && !isMobile"
+    [class.sidebar--drawer-open]="!!selectedConv && !isMobile && sidebarCollapsed"
+  >
+    <div class="sidebar__header">
+      <div class="sidebar__title">
+        <span class="sidebar__icon">💬</span>
+        <h1>Live Chat</h1>
+      </div>
+      <div class="sidebar__actions">
+        <button class="icon-btn" title="Filter">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </button>
+        <button class="icon-btn" title="More">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-input" type="text" placeholder="Search in chat" [(ngModel)]="searchQuery" (input)="onSearch()" />
+    </div>
+
+    <div class="tag-row">
+      <button class="tag-btn">+ Add Tag</button>
+    </div>
+
+    <div class="conn-status" [class.conn-status--connected]="isConnected" [class.conn-status--reconnecting]="isReconnecting">
+      <span class="conn-dot"></span>
+      <span>{{ isConnected ? 'Connected' : isReconnecting ? 'Reconnecting...' : 'Disconnected' }}</span>
+    </div>
+
+    <div class="conv-list" #convListEl (scroll)="onConvScroll($event)">
+
+      <div *ngIf="loadingConversations && conversations.length === 0" class="skeleton-wrap">
+        <div *ngFor="let i of [1,2,3,4,5]" class="skeleton-item">
+          <div class="skeleton-avatar"></div>
+          <div class="skeleton-lines">
+            <div class="skeleton-line skeleton-line--wide"></div>
+            <div class="skeleton-line skeleton-line--narrow"></div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        *ngFor="let conv of filteredConversations"
+        class="conv-item"
+        [class.conv-item--active]="selectedConv?.id === conv.id"
+        [class.conv-item--unread]="conv.unreadCount > 0"
+        (click)="selectConversation(conv)"
+      >
+        <div class="conv-avatar">
+          <span>{{ conv.contactName | slice:0:1 | uppercase }}</span>
+          <span class="conv-avatar__online" *ngIf="conv.isOnline"></span>
+        </div>
+        <div class="conv-body">
+          <div class="conv-row">
+            <span class="conv-name">{{ conv.contactName }}</span>
+            <span class="conv-time">{{ conv.lastMessageAt | date:'dd MMM' }}</span>
+          </div>
+          <div class="conv-row">
+            <span class="conv-preview">{{ conv.lastMessagePreview }}</span>
+            <span class="conv-badge" *ngIf="conv.unreadCount > 0">{{ conv.unreadCount }}</span>
+            <span class="conv-session-end" *ngIf="!conv.unreadCount && conv.sessionEnded">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </span>
+          </div>
+        </div>
+        <button class="conv-menu-btn" (click)="$event.stopPropagation()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div *ngIf="loadingMoreConversations" class="loading-more">
+        <div class="spinner"></div>
+      </div>
+
+      <div *ngIf="!loadingConversations && filteredConversations.length === 0" class="empty-state">
+        <p>No conversations found</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- RIGHT PANEL — Chat Window -->
+  <main class="chat-panel" [class.chat-panel--visible]="isMobileChat || !isMobile">
+
+    <div *ngIf="!selectedConv" class="chat-empty">
+      <div class="chat-empty__icon">💬</div>
+      <h2>Select a conversation</h2>
+      <p>Choose a chat from the left panel to start messaging</p>
+    </div>
+
+    <ng-container *ngIf="selectedConv">
+
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <button class="back-btn" *ngIf="isMobile" (click)="goBack()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+
+        <button class="icon-btn toggle-sidebar-btn" *ngIf="!isMobile" (click)="toggleSidebar()" [title]="sidebarCollapsed ? 'Close list' : 'Show list'">
+          <svg *ngIf="!sidebarCollapsed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+          <svg *ngIf="sidebarCollapsed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+
+        <div class="chat-header__avatar">
+          <span>{{ selectedConv.contactName | slice:0:1 | uppercase }}</span>
+        </div>
+        <div class="chat-header__info">
+          <div class="chat-header__name">{{ selectedConv.contactName }}</div>
+          <div class="chat-header__status">
+            <span class="session-badge" [class.session-badge--active]="!selectedConv.sessionEnded">
+              {{ selectedConv.sessionEnded ? 'No Session' : 'Active Session' }}
+            </span>
+          </div>
+        </div>
+        <div class="chat-header__actions">
+          <button class="icon-btn" title="More options">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages Area -->
+      <div class="messages-area" #messagesEl (scroll)="onMessagesScroll($event)">
+
+        <div *ngIf="hasMoreMessages" class="load-older">
+          <button (click)="loadOlderMessages()" [disabled]="loadingMessages">
+            {{ loadingMessages ? 'Loading...' : 'Load older messages' }}
+          </button>
+        </div>
+
+        <div class="date-divider" *ngIf="messages.length > 0">
+          <span>Conversation started on {{ conversationStartDate | date:'MMM d, yyyy' }}</span>
+        </div>
+
+        <div *ngFor="let msg of messages; trackBy: trackByMsgId">
+          <div class="date-divider" *ngIf="msg.showDateSeparator">
+            <span>{{ msg.timestamp | date:'MMM d, yyyy' }}</span>
+          </div>
+          <div class="msg-wrap" [class.msg-wrap--out]="msg.direction === 'outbound'" [class.msg-wrap--in]="msg.direction === 'inbound'">
+            <div class="msg-bubble" [class.msg-bubble--out]="msg.direction === 'outbound'">
+
+              <!-- Text -->
+              <p *ngIf="msg.messageType === 'text'" class="msg-text">{{ msg.textBody }}</p>
+
+              <!-- Image -->
+              <div *ngIf="msg.messageType === 'image'" class="msg-media">
+                <div class="msg-media__placeholder">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  Image
+                </div>
+                <p *ngIf="msg.mediaCaption" class="msg-caption">{{ msg.mediaCaption }}</p>
+              </div>
+
+              <!-- Document -->
+              <div *ngIf="msg.messageType === 'document'" class="msg-doc">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>{{ msg.mediaFilename || 'Document' }}</span>
+              </div>
+
+              <!-- Video -->
+              <div *ngIf="msg.messageType === 'video'" class="msg-media">
+                <div class="msg-media__placeholder">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                  Video
+                </div>
+                <p *ngIf="msg.mediaCaption" class="msg-caption">{{ msg.mediaCaption }}</p>
+              </div>
+
+              <!-- Audio -->
+              <div *ngIf="msg.messageType === 'audio'" class="msg-audio">🎵 Audio message</div>
+
+              <!-- Reaction -->
+              <div *ngIf="msg.messageType === 'reaction'" class="msg-reaction">{{ msg.reactionEmoji }}</div>
+
+              <div class="msg-meta">
+                <span class="msg-time">{{ msg.timestamp | date:'HH:mm' }}</span>
+                <span class="msg-ticks" *ngIf="msg.direction === 'outbound'">
+                  <span *ngIf="msg.status === 'sent'">✓</span>
+                  <span *ngIf="msg.status === 'delivered'">✓✓</span>
+                  <span class="msg-ticks--read" *ngIf="msg.status === 'read'">✓✓</span>
+                  <span class="msg-ticks--failed" *ngIf="msg.status === 'failed'">✗</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="typing-indicator" *ngIf="isTyping">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <!-- Send Box -->
+      <div class="send-box" [class.send-box--disabled]="selectedConv.sessionEnded">
+
+        <div *ngIf="selectedConv.sessionEnded" class="session-ended-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Free conversation session ended
+        </div>
+
+        <ng-container *ngIf="!selectedConv.sessionEnded">
+
+          <!-- ── Pending Attachment Preview ── -->
+          <div class="attach-preview" *ngIf="pendingAttach">
+
+            <!-- Image preview -->
+            <div *ngIf="pendingAttach.mediaType === MsgType.Image" class="attach-preview__media">
+              <img [src]="pendingAttach.previewUrl" alt="preview" />
+            </div>
+
+            <!-- Video preview -->
+            <div *ngIf="pendingAttach.mediaType === MsgType.Video" class="attach-preview__media">
+              <video [src]="pendingAttach.previewUrl" controls style="max-width:200px;max-height:120px;border-radius:8px"></video>
+            </div>
+
+            <!-- Document preview -->
+            <div *ngIf="pendingAttach.mediaType === MsgType.Document" class="attach-preview__doc">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>{{ pendingAttach.filename }}</span>
+            </div>
+
+            <!-- Caption input (image/video ke liye) -->
+            <input
+              *ngIf="pendingAttach.mediaType !== MsgType.Document"
+              class="attach-caption-input"
+              type="text"
+              placeholder="Add a caption..."
+              [(ngModel)]="pendingAttach.caption"
+            />
+
+            <button class="attach-cancel-btn" (click)="cancelAttach()" title="Remove">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- ── Top Actions Row ── -->
+          <div class="send-actions-top">
+            <button class="send-tool-btn" title="Emoji">😊</button>
+
+            <!-- Attach button with dropdown -->
+            <div class="attach-wrap">
+              <button class="send-tool-btn" title="Attach" (click)="toggleAttachMenu($event)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
+
+              <!-- Dropdown menu -->
+              <div class="attach-menu" *ngIf="showAttachMenu">
+                <button class="attach-menu__item" (click)="openFilePicker('image/*')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  Image
+                </button>
+                <button class="attach-menu__item" (click)="openFilePicker('video/*')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                  Video
+                </button>
+                <button class="attach-menu__item" (click)="openFilePicker('.pdf,.doc,.docx,.xls,.xlsx,.txt')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Document
+                </button>
+              </div>
+            </div>
+
+            <button class="send-tool-btn" title="Template">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </button>
+          </div>
+
+          <!-- ── Input Row ── -->
+          <div class="send-row">
+            <textarea
+              class="send-input"
+              [placeholder]="pendingAttach ? 'Press send to send attachment...' : 'Type a message...'"
+              [(ngModel)]="messageText"
+              (keydown.enter)="onEnterKey($event)"
+              (input)="onInputChange()"
+              [disabled]="!!pendingAttach"
+              rows="1"
+              #msgInput
+            ></textarea>
+            <button
+              class="send-btn"
+              [class.send-btn--active]="canSend"
+              (click)="sendMessage()"
+              [disabled]="!canSend"
+            >
+              <svg *ngIf="!sending" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <div *ngIf="sending" class="spinner spinner--sm"></div>
+            </button>
+          </div>
+
+        </ng-container>
+      </div>
+
+    </ng-container>
+  </main>
+
+</div>

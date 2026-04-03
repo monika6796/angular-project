@@ -1,0 +1,187 @@
+<ng-container *ngIf="isOpen">
+  <div class="ct-overlay" (click)="close()"></div>
+
+  <div class="ct-modal" (click)="$event.stopPropagation()">
+    <button class="ct-close" (click)="close()">✕</button>
+
+    <!-- Header strip -->
+    <div class="ct-header">
+      <span class="ct-header-icon">📝</span>
+      <div>
+        <div class="ct-header-title">Create WhatsApp Template</div>
+        <div class="ct-header-sub">WABA ID: {{ wabaId }}</div>
+      </div>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="ct-body">
+
+      <!-- ── Basic Info ── -->
+      <div class="ct-section">
+        <div class="ct-section-title">📋 Basic Info</div>
+        <div class="ct-row-2">
+
+          <div class="ct-field">
+            <label class="ct-label">Template Name <span class="ct-req">*</span></label>
+            <input class="ct-input" [(ngModel)]="templateName"
+              placeholder="e.g. order_confirmation" />
+            <div class="ct-hint">Lowercase, underscores only (auto-converted)</div>
+          </div>
+
+          <div class="ct-field">
+            <label class="ct-label">Category <span class="ct-req">*</span></label>
+            <select class="ct-select" [(ngModel)]="category">
+              <option *ngFor="let c of categories" [value]="c.value">{{ c.label }}</option>
+            </select>
+          </div>
+
+          <div class="ct-field">
+            <label class="ct-label">Language <span class="ct-req">*</span></label>
+            <select class="ct-select" [(ngModel)]="language">
+              <option *ngFor="let l of languages" [value]="l.code">{{ l.label }}</option>
+            </select>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Header ── -->
+      <div class="ct-section">
+        <div class="ct-section-title">🔝 Header <span class="ct-optional">(optional)</span></div>
+
+        <div class="ct-field" style="max-width:200px">
+          <label class="ct-label">Header Type</label>
+          <select class="ct-select" [(ngModel)]="headerFormat">
+            <option *ngFor="let h of headerFormats" [value]="h.value">{{ h.label }}</option>
+          </select>
+        </div>
+
+        <div class="ct-field" *ngIf="headerFormat === 'TEXT'">
+          <label class="ct-label">Header Text <span class="ct-req">*</span></label>
+          <input class="ct-input" [(ngModel)]="headerText" placeholder="e.g. Order Confirmation" />
+        </div>
+
+        <div class="ct-media-note"
+             *ngIf="headerFormat === 'IMAGE' || headerFormat === 'VIDEO' || headerFormat === 'DOCUMENT'">
+          📎 {{ headerFormat }} header — media URL ko send karte waqt provide karna hoga.
+        </div>
+      </div>
+
+      <!-- ── Body ── -->
+      <div class="ct-section">
+        <div class="ct-section-title">💬 Body <span class="ct-req">*</span></div>
+
+        <div class="ct-field">
+          <label class="ct-label">Body Text</label>
+          <textarea class="ct-textarea" rows="4" [(ngModel)]="bodyText"
+            (ngModelChange)="onBodyTextChange()"
+            placeholder="Hello {{1}}, your order {{2}} is confirmed!">
+          </textarea>
+          <div class="ct-hint">Variables use: &#123;&#123;1&#125;&#125;, &#123;&#123;2&#125;&#125;, ...</div>
+        </div>
+
+        <!-- Variable examples -->
+        <div class="ct-vars-wrap" *ngIf="bodyVarCount > 0">
+          <div class="ct-vars-title">Variable Examples (required by WhatsApp)</div>
+          <div class="ct-vars-grid">
+            <div class="ct-field" *ngFor="let ex of bodyExamples; let i = index; trackBy: trackByIndex">
+              <label class="ct-label">{{ i + 1 }}&#125;&#125; Example <span class="ct-req">*</span></label>
+              <input class="ct-input" [(ngModel)]="bodyExamples[i]"
+                [placeholder]="'e.g. value for {{' + (i+1) + '}}'"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Footer ── -->
+      <div class="ct-section">
+        <div class="ct-section-title">📄 Footer <span class="ct-optional">(optional)</span></div>
+        <div class="ct-field">
+          <label class="ct-label">Footer Text</label>
+          <input class="ct-input" [(ngModel)]="footerText"
+            placeholder="e.g. Thank you for shopping with us!" />
+        </div>
+      </div>
+
+      <!-- ── Buttons ── -->
+      <div class="ct-section">
+        <div class="ct-section-title-row">
+          <span class="ct-section-title">🔘 Buttons <span class="ct-optional">(max 3, optional)</span></span>
+          <button class="ct-add-btn" (click)="addButton()" [disabled]="buttons.length >= 3">
+            + Add Button
+          </button>
+        </div>
+
+        <div class="ct-btn-list">
+          <div class="ct-btn-card" *ngFor="let btn of buttons; let i = index">
+            <div class="ct-btn-card-header">
+              <span class="ct-btn-num">Button {{ i + 1 }}</span>
+              <button class="ct-btn-remove" (click)="removeButton(i)">🗑️ Remove</button>
+            </div>
+
+            <div class="ct-row-2">
+
+              <div class="ct-field">
+                <label class="ct-label">Type</label>
+                <select class="ct-select" [(ngModel)]="btn.type">
+                  <option value="QUICK_REPLY">Quick Reply</option>
+                  <option value="URL">URL</option>
+                  <option value="PHONE_NUMBER">Phone Number</option>
+                </select>
+              </div>
+
+              <div class="ct-field">
+                <label class="ct-label">Button Text <span class="ct-req">*</span></label>
+                <input class="ct-input" [(ngModel)]="btn.text" placeholder="e.g. Track Order" />
+              </div>
+
+              <!-- URL fields -->
+              <ng-container *ngIf="btn.type === 'URL'">
+                <div class="ct-field">
+                  <label class="ct-label">URL <span class="ct-req">*</span></label>
+                  <input class="ct-input" [(ngModel)]="btn.url"
+                    placeholder="https://example.com/track/{{1}}" />
+                  <div class="ct-hint">Dynamic suffix ke liye &#123;&#123;1&#125;&#125; use karo</div>
+                </div>
+                <div class="ct-field">
+                  <label class="ct-label">URL Example</label>
+                  <input class="ct-input" [(ngModel)]="btn.urlExample"
+                    placeholder="e.g. ORD12345" />
+                </div>
+              </ng-container>
+
+              <!-- Phone Number field -->
+              <div class="ct-field" *ngIf="btn.type === 'PHONE_NUMBER'">
+                <label class="ct-label">Phone Number <span class="ct-req">*</span></label>
+                <input class="ct-input" [(ngModel)]="btn.phoneNumber"
+                  placeholder="e.g. 917891899899" />
+                <div class="ct-hint">Country code ke saath (no + or spaces)</div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="ct-no-buttons" *ngIf="buttons.length === 0">
+            No buttons added. "+ Add Button" click karo.
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Feedback ── -->
+      <div class="ct-success" *ngIf="success()">{{ success() }}</div>
+      <div class="ct-error"   *ngIf="error()">{{ error() }}</div>
+
+    </div><!-- /ct-body -->
+
+    <!-- Footer actions -->
+    <div class="ct-footer">
+      <button class="ct-cancel-btn" (click)="close()" [disabled]="loading()">Cancel</button>
+      <button class="ct-submit-btn" (click)="submit()" [disabled]="loading() || !isValid">
+        <span *ngIf="!loading()">🚀 Create Template</span>
+        <span *ngIf="loading()" class="ct-loading">
+          <span class="ct-spinner"></span> Creating...
+        </span>
+      </button>
+    </div>
+  </div>
+</ng-container>

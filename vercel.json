@@ -1,0 +1,25 @@
+{
+  "rewrites": [
+    {
+      "source": "/Auth/:path*",
+      "destination": "http://16.170.205.169:5000/Auth/:path*"
+    },
+    {
+      "source": "/whatsapp/:path*",
+      "destination": "http://16.170.205.169:5000/whatsapp/:path*"
+    },
+    {
+      "source": "/get_whatsapp/:path*",
+      "destination": "http://16.170.205.169:5000/get_whatsapp/:path*"
+    },
+    {
+      "source": "/whatsapp-message/:path*",
+      "destination": "http://16.170.205.169:5000/whatsapp-message/:path*"
+    },
+    {
+      "source": "/hubs/:path*",
+      "destination": "http://16.170.205.169:5000/hubs/:path*"
+    }
+    
+  ]
+}

@@ -1,0 +1,159 @@
+<div class="login-page">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="left-inner">
+
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="bi bi-whatsapp"></i>
+        </div>
+        <span class="brand-name">SocialCRM</span>
+      </div>
+
+      <div class="hero-text">
+        <h1>One stop<br><span class="accent">solution</span><br>for Business<br>Automation</h1>
+      </div>
+
+      <p class="hero-desc">
+        AI-powered platform driving conversation-led growth.
+        Helping <strong>10,000+ brands</strong> across the globe seize
+        opportunities faster.
+      </p>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-num">10K+</span>
+          <span class="stat-label">Brands</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-num">98%</span>
+          <span class="stat-label">Uptime</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-num">50M+</span>
+          <span class="stat-label">Messages</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Decorative circles -->
+    <div class="deco deco-1"></div>
+    <div class="deco deco-2"></div>
+    <div class="deco deco-3"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="login-card">
+
+      <!-- Logo -->
+      <div class="card-logo">
+        <img src="assets/logo.png" alt="SocialCRM Logo"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="logo-fallback" style="display:none">
+          <i class="bi bi-whatsapp"></i>
+        </div>
+      </div>
+
+      <h2 class="card-title">Welcome back</h2>
+      <p class="card-subtitle">Sign in to your SocialCRM account</p>
+
+      <form 
+  [formGroup]="loginForm" 
+  (ngSubmit)="login()" 
+  autocomplete="off">
+
+  <!--  ERROR inside form -->
+  <div class="error-alert" *ngIf="errorMessage">
+    <i class="bi bi-exclamation-circle-fill"></i>
+    {{ errorMessage }}
+  </div>
+
+  <!-- EMAIL -->
+  <div class="field-group">
+    <label class="field-label">Email Address</label>
+    <div class="input-wrapper">
+      <i class="bi bi-envelope input-icon"></i>
+      <input
+        class="field-input"
+        type="email"
+        formControlName="email"
+        placeholder="you@company.com"
+        autocomplete="username">
+
+      <div class="error-text"
+           *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid">
+        <span *ngIf="loginForm.get('email')?.errors?.['required']">
+          Email is required
+        </span>
+        <span *ngIf="loginForm.get('email')?.errors?.['email']">
+          Enter valid email
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASSWORD -->
+  <div class="field-group">
+    <label class="field-label">Password</label>
+    <div class="input-wrapper">
+      <i class="bi bi-lock input-icon"></i>
+      <input
+        class="field-input"
+        [type]="showPassword ? 'text' : 'password'"
+        formControlName="password"
+        placeholder="Enter your password"
+        autocomplete="current-password">
+
+      <div class="error-text"
+           *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.invalid">
+        Password is required
+      </div>
+
+      <i class="bi input-toggle"
+         [class.bi-eye]="!showPassword"
+         [class.bi-eye-slash]="showPassword"
+         (click)="showPassword = !showPassword"></i>
+    </div>
+  </div>
+
+  <!-- CAPTCHA -->
+  <div class="captcha-box">
+    <label class="checkbox-label">
+      <input type="checkbox"
+             [(ngModel)]="captchaChecked"
+             [ngModelOptions]="{standalone:true}">
+      <span class="checkmark"></span>
+      I'm not a robot
+    </label>
+  </div>
+
+  <!-- BUTTON -->
+  <button 
+    class="signin-btn" 
+    type="submit" 
+    [disabled]="loginForm.invalid || isLoading">
+
+    <span *ngIf="!isLoading">Sign In</span>
+
+    <span *ngIf="isLoading" class="btn-loader">
+      <i class="bi bi-arrow-clockwise spin"></i> Signing in...
+    </span>
+
+  </button>
+
+</form>
+
+      <p class="signup-text">
+        Don't have an account?
+        <a class="signup-link" href="#">Create account</a>
+      </p>
+
+    </div>
+  </div>
+
+</div>

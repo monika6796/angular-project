@@ -1,0 +1,164 @@
+<div class="container-fluid p-4">
+
+  <h5 class="fw-bold mb-3">CHANNEL</h5>
+
+  <!-- Top Action Bar -->
+  <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
+
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" placeholder="Search Channel By Name ..." (input)="onSearch($event)">
+    </div>
+
+    <button class="icon-btn" title="Sort A-Z" (click)="sortAscending()">
+      <i class="bi bi-sort-alpha-down"></i>
+    </button>
+    <button class="icon-btn" title="Sort Z-A" (click)="sortDescending()">
+      <i class="bi bi-sort-alpha-up"></i>
+    </button>
+    <button class="icon-btn" [class.active]="viewMode === 'grid'" title="Grid View" (click)="setViewMode('grid')">
+      <i class="bi bi-grid"></i>
+    </button>
+    <button class="icon-btn" [class.active]="viewMode === 'list'" title="List View" (click)="setViewMode('list')">
+      <i class="bi bi-list"></i>
+    </button>
+
+    <button class="btn btn-primary" (click)="toggleChannel()">
+      <i class="bi bi-plus"></i> Add New Channel
+    </button>
+
+    <button class="btn btn-light">Conversation Statistics</button>
+    <button class="btn btn-light">Total Balance</button>
+    <button class="btn btn-light">Bulk Action</button>
+
+    <!-- Refresh Button -->
+    <button class="btn btn-outline-secondary ms-auto" (click)="fetchChannelData()" title="Refresh">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-success" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2 text-muted">Loading channels...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="errorMessage && !isLoading" class="alert alert-danger d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    {{ errorMessage }}
+    <button class="btn btn-sm btn-outline-danger ms-auto" (click)="fetchChannelData()">Retry</button>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && !errorMessage && filteredCards.length === 0" class="text-center py-5 text-muted">
+    <i class="bi bi-whatsapp fs-1"></i>
+    <p class="mt-2">No channels found.</p>
+  </div>
+
+  <!-- Cards Grid / List -->
+  <div *ngIf="!isLoading && filteredCards.length > 0"
+       [class]="viewMode === 'grid' ? 'cards-grid' : 'cards-list'">
+
+    <div class="channel-card" *ngFor="let card of filteredCards">
+
+      <!-- Card Header -->
+      <div class="card-header-custom">
+
+        <div class="d-flex align-items-center gap-3">
+
+          <!-- Profile Picture or WhatsApp Icon -->
+          <div class="whatsapp-icon">
+            <img *ngIf="card.profilePicUrl" [src]="card.profilePicUrl"
+                 class="profile-pic" alt="Profile" (error)="card.profilePicUrl = ''">
+            <i *ngIf="!card.profilePicUrl" class="bi bi-whatsapp"></i>
+          </div>
+
+          <div>
+            <div class="fw-bold">{{ card.accountName }}</div>
+            <div class="text-muted small">{{ card.displayPhone }}</div>
+            <div class="text-muted small biz-name">
+              <i class="bi bi-building"></i> {{ card.businessName }}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Verification Badge -->
+        <div class="verification-badge" [class.verified]="card.verificationStatus === 'verified'"
+             title="Verification Status">
+          <i class="bi" [class.bi-patch-check-fill]="card.verificationStatus === 'verified'"
+             [class.bi-patch-question]="card.verificationStatus !== 'verified'"></i>
+          {{ card.verificationStatus === 'verified' ? 'Verified' : 'Not Verified' }}
+        </div>
+
+      </div>
+
+      <!-- Card Body -->
+      <div class="card-body-custom">
+
+        <div class="row g-2">
+
+          <div class="col-md-6">
+            <p class="label">Number Status</p>
+            <p class="value">
+              <span class="status-badge" [ngClass]="getStatusClass(card.numberStatus)">
+                <i class="bi bi-circle-fill me-1"></i>{{ card.numberStatus }}
+              </span>
+            </p>
+
+            <p class="label mt-2">Message Limit</p>
+            <p class="value">
+              <i class="bi bi-chat-left me-1"></i>
+              {{ card.messageLimit }}
+            </p>
+          </div>
+
+          <div class="col-md-6">
+            <p class="label">Quality Score</p>
+            <p class="value">
+              <span class="quality-badge" [ngClass]="getQualityClass(card.qualityScore)">
+                <i class="bi bi-circle-fill me-1"></i>{{ card.qualityScore }}
+              </span>
+            </p>
+
+            <p class="label mt-2">2FA Enabled</p>
+            <p class="value">
+              <i class="bi me-1" [class.bi-shield-check]="card.twoFaEnabled === 'Yes'"
+                 [class.bi-shield-x]="card.twoFaEnabled !== 'Yes'"></i>
+              {{ card.twoFaEnabled }}
+            </p>
+
+            <p class="label mt-2">Currency</p>
+            <p class="value">
+              <i class="bi bi-currency-exchange me-1"></i>
+              {{ card.currency || 'N/A' }}
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Card Footer -->
+      <div class="card-footer-custom">
+        <button class="footer-btn" title="Link"><i class="bi bi-link-45deg"></i></button>
+<button class="footer-btn"
+        title="Template Manager"
+        (click)="openTemplates(card)">
+  <i class="bi bi-file-earmark-text"></i>
+</button>        <button class="footer-btn" title="Analytics"><i class="bi bi-bar-chart"></i></button>
+        <button class="footer-btn" title="Billing"><i class="bi bi-credit-card"></i></button>
+        <button class="footer-btn" title="Bot"><i class="bi bi-robot"></i></button>
+        <button class="footer-btn" title="Integration"><i class="bi bi-plug"></i></button>
+        <button class="footer-btn" title="WhatsApp"><i class="bi bi-whatsapp"></i></button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

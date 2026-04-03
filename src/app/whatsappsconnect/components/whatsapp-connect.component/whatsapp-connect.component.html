@@ -1,0 +1,72 @@
+<div class="wa-connect-wrapper">
+
+  <!-- Not connected state -->
+  <ng-container *ngIf="!status?.isConnected">
+    <div class="wa-card">
+      <div class="wa-icon">
+        <img src="assets/whatsapp-icon.svg" alt="WhatsApp" width="48" />
+      </div>
+      <h3>Connect WhatsApp Business</h3>
+      <p class="wa-desc">
+        Apna WhatsApp Business account connect karo aur
+        directly messages bhejo.
+      </p>
+
+      <button
+        class="btn-connect"
+        (click)="connectWhatsApp()"
+        [disabled]="loading">
+        <span *ngIf="!loading">Connect WhatsApp</span>
+        <span *ngIf="loading">Connecting...</span>
+      </button>
+
+      <p class="wa-error" *ngIf="error">{{ error }}</p>
+    </div>
+  </ng-container>
+
+  <!-- Connected state -->
+  <ng-container *ngIf="status?.isConnected">
+    <div class="wa-card connected">
+
+      <div class="wa-status-badge">
+        <span class="dot green"></span> Connected
+      </div>
+
+      <h3>{{ status?.businessName }}</h3>
+      <p class="waba-id">WABA ID: {{ status?.wabaId }}</p>
+
+      <!-- Phone Numbers list -->
+      <div class="phone-list">
+        <div
+          class="phone-item"
+          *ngFor="let phone of status?.phoneNumbers">
+          <div class="phone-info">
+            <span class="phone-number">{{ phone.phoneNumber }}</span>
+            <span class="phone-name">{{ phone.displayName }}</span>
+          </div>
+          <div class="phone-meta">
+            <span class="quality-badge"
+              [ngClass]="{
+                'green': phone.qualityRating === 'GREEN',
+                'yellow': phone.qualityRating === 'YELLOW',
+                'red': phone.qualityRating === 'RED'
+              }">
+              {{ phone.qualityRating }}
+            </span>
+            <span class="webhook-badge" *ngIf="phone.isWebhookSubscribed">
+              Webhook ✓
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <button
+        class="btn-disconnect"
+        (click)="disconnectWhatsApp()"
+        [disabled]="loading">
+        {{ loading ? 'Disconnecting...' : 'Disconnect' }}
+      </button>
+    </div>
+  </ng-container>
+
+</div>

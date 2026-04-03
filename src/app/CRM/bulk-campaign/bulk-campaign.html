@@ -1,0 +1,433 @@
+<div class="campaign-shell">
+
+  <!-- ── Stepper Header ───────────────────────────────────────── -->
+  <div class="stepper-bar">
+    <div class="stepper-title">
+      <span class="stepper-icon">📣</span>
+      <span>Bulk Campaign</span>
+    </div>
+    <div class="stepper-steps">
+      <ng-container *ngFor="let s of [1,2,3,4,5]; let i = index">
+        <div class="step-item"
+             [class.active]="currentStep() === s"
+             [class.done]="currentStep() > s">
+          <div class="step-circle">
+            <span *ngIf="currentStep() <= s">{{ s }}</span>
+            <span *ngIf="currentStep() > s">✓</span>
+          </div>
+          <div class="step-label">{{ ['Audience','Template','Variables','Schedule','Launch'][i] }}</div>
+        </div>
+        <div class="step-line" *ngIf="i < 4" [class.done]="currentStep() > s"></div>
+      </ng-container>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP 1 — AUDIENCE
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="step-body" *ngIf="currentStep() === 1">
+    <div class="step-heading">
+      <h2>Select Audience</h2>
+      <span class="selected-badge" *ngIf="selectedContacts().length > 0">
+        {{ selectedContacts().length }} selected
+      </span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-row">
+      <button class="tab-btn" [class.active]="activeTab() === 'db'" (click)="activeTab.set('db')">
+        💬 From Conversations
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'csv'" (click)="activeTab.set('csv')">
+        📄 CSV Upload
+      </button>
+    </div>
+
+    <!-- DB Tab -->
+    <ng-container *ngIf="activeTab() === 'db'">
+      <div class="search-row">
+        <input class="camp-input" placeholder="🔍 Search contacts..."
+          [value]="contactSearch()" (input)="contactSearch.set($any($event.target).value)" />
+        <button class="btn-outline" (click)="fetchContacts()">↺ Refresh</button>
+      </div>
+
+      <div class="contacts-error" *ngIf="contactsError()">{{ contactsError() }}</div>
+
+      <div class="contacts-table-wrap">
+        <table class="contacts-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" [checked]="selectAll()"
+                (change)="toggleSelectAll($any($event.target).checked)" /></th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Last Message</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="contactsLoading()">
+              <td colspan="5" class="loading-row">
+                <span class="spinner"></span> Loading contacts...
+              </td>
+            </tr>
+            <tr *ngFor="let c of filteredContacts()" [class.row-selected]="c.selected">
+              <td><input type="checkbox" [checked]="c.selected"
+                (change)="toggleContact(c.id, $any($event.target).checked)" /></td>
+              <td>
+                <div class="contact-name-cell">
+                  <div class="contact-avatar">{{ c.contactName[0] | uppercase }}</div>
+                  {{ c.contactName }}
+                </div>
+              </td>
+              <td class="phone-cell">+{{ c.contactWaId }}</td>
+              <td class="preview-cell">{{ c.lastMessagePreview }}</td>
+              <td>
+                <span class="status-dot" [class.active]="c.isActive"></span>
+                {{ c.isActive ? 'Active' : 'Inactive' }}
+              </td>
+            </tr>
+            <tr *ngIf="!contactsLoading() && filteredContacts().length === 0">
+              <td colspan="5" class="empty-row">No contacts found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="load-more-row" *ngIf="hasMore() && !contactsLoading()">
+        <button class="btn-outline" (click)="loadMoreContacts()">Load More</button>
+        <span class="count-info">Showing {{ contacts().length }} of {{ totalCount() }}</span>
+      </div>
+    </ng-container>
+
+    <!-- CSV Tab -->
+    <ng-container *ngIf="activeTab() === 'csv'">
+      <div class="csv-zone">
+        <div class="csv-upload-box">
+          <span class="csv-icon">📄</span>
+          <p>Upload CSV with <strong>name</strong> and <strong>phone</strong> columns</p>
+          <input type="file" accept=".csv" id="csvFile" hidden (change)="onCsvUpload($event)" />
+          <label for="csvFile" class="btn-primary">Choose CSV File</label>
+          <button class="btn-outline" (click)="downloadSampleCsv()">⬇ Sample CSV</button>
+        </div>
+        <div class="csv-error" *ngIf="csvError()">{{ csvError() }}</div>
+
+        <div *ngIf="csvContacts().length > 0" class="csv-preview">
+          <div class="csv-preview-header">
+            <span>{{ csvContacts().length }} contacts imported</span>
+            <input type="checkbox" [checked]="true"
+              (change)="toggleSelectAll($any($event.target).checked)" />
+            <label>Select All</label>
+          </div>
+          <table class="contacts-table">
+            <thead><tr><th></th><th>Name</th><th>Phone</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of csvContacts()" [class.row-selected]="c.selected">
+                <td><input type="checkbox" [checked]="c.selected"
+                  (change)="toggleCsvContact(c.contactWaId, $any($event.target).checked)" /></td>
+                <td>{{ c.contactName }}</td>
+                <td>+{{ c.contactWaId }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP 2 — TEMPLATE
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="step-body" *ngIf="currentStep() === 2">
+    <div class="step-heading">
+      <h2>Select Template</h2>
+      <span class="sub-text">Only APPROVED templates shown</span>
+    </div>
+
+    <input class="camp-input" placeholder="🔍 Search templates..."
+      [value]="templateSearch()" (input)="templateSearch.set($any($event.target).value)" />
+
+    <div class="templates-grid">
+      <div *ngIf="templatesLoading()" class="loading-row">
+        <span class="spinner"></span> Loading templates...
+      </div>
+
+      <div class="template-card"
+           *ngFor="let t of filteredTemplates()"
+           [class.selected]="selectedTemplate()?.id === t.id"
+           (click)="selectTemplate(t)">
+        <div class="tpl-card-header">
+          <span class="tpl-name">{{ t.name }}</span>
+          <span class="tpl-lang">{{ t.language }}</span>
+        </div>
+        <div class="tpl-category">{{ t.category }}</div>
+        <div class="tpl-body-preview">
+          {{ t.components[0]?.text || t.components[1]?.text || 'Template preview...' }}
+        </div>
+        <div class="tpl-check" *ngIf="selectedTemplate()?.id === t.id">✓ Selected</div>
+      </div>
+
+      <div *ngIf="!templatesLoading() && filteredTemplates().length === 0" class="empty-row">
+        No approved templates found.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP 3 — VARIABLE MAPPING
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="step-body" *ngIf="currentStep() === 3">
+    <div class="step-heading">
+      <h2>Map Variables</h2>
+      <span class="sub-text">Each variable will be replaced per contact</span>
+    </div>
+
+    <div class="no-vars"
+         *ngIf="bodyVarMappings.length === 0 && headerVarMappings.length === 0 && buttonVarMappings.length === 0">
+      <span>✅ This template has no dynamic variables — ready to send!</span>
+    </div>
+
+    <!-- Header Vars -->
+    <div class="var-section" *ngIf="headerVarMappings.length > 0">
+      <div class="var-section-title">📌 Header Variables</div>
+      <div class="var-row" *ngFor="let v of headerVarMappings">
+        <label class="var-label">{{ v.label }}</label>
+        <div class="var-controls">
+          <select class="camp-select" [(ngModel)]="v.mapTo">
+            <option value="contactName">Contact Name</option>
+            <option value="contactWaId">Phone Number</option>
+            <option value="custom">Custom Value</option>
+          </select>
+          <input *ngIf="v.mapTo === 'custom'" class="camp-input"
+            placeholder="Enter value" [(ngModel)]="v.customValue" />
+        </div>
+        <div class="var-preview">
+          Preview: <strong>{{ resolveVar(v, { contactName: 'John Doe', contactWaId: '919876543210', id: 0, lastMessagePreview: '', lastMessageAt: '', unreadCount: 0, isActive: true, selected: false }) }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Body Vars -->
+    <div class="var-section" *ngIf="bodyVarMappings.length > 0">
+      <div class="var-section-title">📝 Body Variables</div>
+      <div class="var-row" *ngFor="let v of bodyVarMappings">
+        <label class="var-label">{{ v.label }}</label>
+        <div class="var-controls">
+          <select class="camp-select" [(ngModel)]="v.mapTo">
+            <option value="contactName">Contact Name</option>
+            <option value="contactWaId">Phone Number</option>
+            <option value="custom">Custom Value</option>
+          </select>
+          <input *ngIf="v.mapTo === 'custom'" class="camp-input"
+            placeholder="Enter value" [(ngModel)]="v.customValue" />
+        </div>
+        <div class="var-preview">
+          Preview: <strong>{{ resolveVar(v, { contactName: 'John Doe', contactWaId: '919876543210', id: 0, lastMessagePreview: '', lastMessageAt: '', unreadCount: 0, isActive: true, selected: false }) }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Button Vars -->
+    <div class="var-section" *ngIf="buttonVarMappings.length > 0">
+      <div class="var-section-title">🔗 Button URL Variables</div>
+      <div class="var-row" *ngFor="let v of buttonVarMappings">
+        <label class="var-label">{{ v.label }}</label>
+        <div class="var-controls">
+          <select class="camp-select" [(ngModel)]="v.mapTo">
+            <option value="contactName">Contact Name</option>
+            <option value="contactWaId">Phone Number</option>
+            <option value="custom">Custom Value</option>
+          </select>
+          <input *ngIf="v.mapTo === 'custom'" class="camp-input"
+            placeholder="Enter URL suffix" [(ngModel)]="v.customValue" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Message Preview -->
+    <div class="preview-box" *ngIf="selectedTemplate() && selectedContacts().length > 0">
+      <div class="preview-box-title">📱 Preview for first contact</div>
+      <div class="preview-bubble">
+        {{ getBodyPreview(selectedContacts()[0]) }}
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP 4 — SCHEDULE
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="step-body" *ngIf="currentStep() === 4">
+    <div class="step-heading">
+      <h2>Schedule Campaign</h2>
+    </div>
+
+    <div class="schedule-form">
+      <div class="field-group">
+        <label class="field-label">Campaign Name <span class="req">*</span></label>
+        <input class="camp-input" placeholder="e.g. Diwali Sale 2025"
+          [value]="campaignName()" (input)="campaignName.set($any($event.target).value)" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">When to Send?</label>
+        <div class="schedule-options">
+          <label class="schedule-option" [class.active]="scheduleType() === 'now'">
+            <input type="radio" name="schedType" value="now"
+              [checked]="scheduleType() === 'now'" (change)="scheduleType.set('now')" />
+            <span class="sched-icon">⚡</span>
+            <div>
+              <div class="sched-title">Send Now</div>
+              <div class="sched-sub">Campaign starts immediately</div>
+            </div>
+          </label>
+          <label class="schedule-option" [class.active]="scheduleType() === 'later'">
+            <input type="radio" name="schedType" value="later"
+              [checked]="scheduleType() === 'later'" (change)="scheduleType.set('later')" />
+            <span class="sched-icon">🕐</span>
+            <div>
+              <div class="sched-title">Schedule Later</div>
+              <div class="sched-sub">Pick a date & time</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="datetime-row" *ngIf="scheduleType() === 'later'">
+        <div class="field-group">
+          <label class="field-label">Date</label>
+          <input class="camp-input" type="date"
+            [value]="scheduleDate()" (change)="scheduleDate.set($any($event.target).value)" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Time</label>
+          <input class="camp-input" type="time"
+            [value]="scheduleTime()" (change)="scheduleTime.set($any($event.target).value)" />
+        </div>
+      </div>
+
+      <div class="schedule-error" *ngIf="scheduleError()">{{ scheduleError() }}</div>
+
+      <!-- Summary -->
+      <div class="campaign-summary">
+        <div class="summary-title">Campaign Summary</div>
+        <div class="summary-row"><span>Recipients</span><strong>{{ selectedContacts().length }}</strong></div>
+        <div class="summary-row"><span>Template</span><strong>{{ selectedTemplate()?.name }}</strong></div>
+        <div class="summary-row"><span>Language</span><strong>{{ selectedTemplate()?.language }}</strong></div>
+        <div class="summary-row" *ngIf="scheduleType() === 'later'">
+          <span>Scheduled</span>
+          <strong>{{ scheduleDate() }} {{ scheduleTime() }}</strong>
+        </div>
+        <div class="summary-row" *ngIf="scheduleType() === 'now'">
+          <span>Scheduled</span><strong>Immediately</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       STEP 5 — LAUNCH / PROGRESS
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="step-body" *ngIf="currentStep() === 5">
+    <div class="step-heading">
+      <h2>{{ campaignDone() ? 'Campaign Complete 🎉' : scheduleType() === 'later' ? 'Campaign Scheduled ⏳' : 'Sending...' }}</h2>
+    </div>
+
+    <!-- Scheduled waiting state -->
+    <div class="scheduled-info"
+         *ngIf="scheduleType() === 'later' && !campaignRunning() && !campaignDone()">
+      <div class="sched-waiting-icon">🕐</div>
+      <p>Campaign <strong>{{ campaignName() }}</strong> scheduled for</p>
+      <div class="sched-datetime">{{ scheduleDate() }} at {{ scheduleTime() }}</div>
+      <button class="btn-danger" (click)="cancelScheduled()">Cancel Schedule</button>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-section" *ngIf="campaignRunning() || campaignDone()">
+      <div class="progress-stats">
+        <div class="stat-card success">
+          <div class="stat-num">{{ sentCount() }}</div>
+          <div class="stat-lbl">Sent ✅</div>
+        </div>
+        <div class="stat-card failed">
+          <div class="stat-num">{{ failedCount() }}</div>
+          <div class="stat-lbl">Failed ❌</div>
+        </div>
+        <div class="stat-card pending">
+          <div class="stat-num">{{ pendingCount() }}</div>
+          <div class="stat-lbl">Pending ⏳</div>
+        </div>
+        <div class="stat-card total">
+          <div class="stat-num">{{ campaignResults().length }}</div>
+          <div class="stat-lbl">Total</div>
+        </div>
+      </div>
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" [style.width.%]="progressPct()"></div>
+        </div>
+        <span class="progress-pct">{{ progressPct() }}%</span>
+      </div>
+
+      <!-- Results Table -->
+      <div class="results-table-wrap">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of campaignResults()" [class]="'row-' + r.status">
+              <td>
+                <div class="contact-name-cell">
+                  <div class="contact-avatar">{{ r.contactName[0] | uppercase }}</div>
+                  {{ r.contactName }}
+                </div>
+              </td>
+              <td>+{{ r.phone }}</td>
+              <td>
+                <span class="result-badge" [class]="r.status">
+                  <span *ngIf="r.status === 'pending'">⏳ Pending</span>
+                  <span *ngIf="r.status === 'sending'">
+                    <span class="spinner-sm"></span> Sending
+                  </span>
+                  <span *ngIf="r.status === 'success'">✅ Sent</span>
+                  <span *ngIf="r.status === 'failed'">❌ Failed</span>
+                </span>
+              </td>
+              <td class="error-cell">{{ r.error || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="done-actions" *ngIf="campaignDone()">
+        <button class="btn-outline" (click)="exportResults()">⬇ Export Results CSV</button>
+        <button class="btn-primary" (click)="resetCampaign()">🔄 New Campaign</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer Nav ─────────────────────────────────────────────────────── -->
+  <div class="step-footer" *ngIf="currentStep() < 5">
+    <button class="btn-outline" (click)="goBack()" [disabled]="currentStep() === 1">
+      ← Back
+    </button>
+    <div class="footer-info">
+      <span *ngIf="currentStep() === 1 && selectedContacts().length > 0">
+        {{ selectedContacts().length }} contacts selected
+      </span>
+      <span *ngIf="currentStep() === 2 && selectedTemplate()">
+        Template: {{ selectedTemplate()!.name }}
+      </span>
+    </div>
+    <button class="btn-primary" (click)="goNext()" [disabled]="!canGoNext()">
+      {{ currentStep() === 4 ? (scheduleType() === 'now' ? '🚀 Launch Campaign' : '⏰ Schedule Campaign') : 'Next →' }}
+    </button>
+  </div>
+
+</div>
